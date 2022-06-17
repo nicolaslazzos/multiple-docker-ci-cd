@@ -1,0 +1,28 @@
+language: generic
+
+sudo: required
+
+services:
+  - docker
+
+before_install: 
+  - docker build -t nicolaslazzos/client-test -f ./client/Dockerfile.dev ./client
+  # we could add more builds like that to test the other services like the server and the worker
+
+script:
+  - docker run -e CI=true nicolaslazzos/client-test npm run test:ci
+  # same here
+
+after_success:
+  - docker build -t nicolaslazzos/multiple-docker-client ./client
+  - docker build -t nicolaslazzos/multiple-docker-server ./server
+  - docker build -t nicolaslazzos/multiple-docker-worker ./worker
+  - docker build -t nicolaslazzos/multiple-docker-nginx ./nginx
+
+  # push images to docker hub
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+
+  - docker push nicolaslazzos/multiple-docker-client
+  - docker push nicolaslazzos/multiple-docker-server
+  - docker push nicolaslazzos/multiple-docker-worker
+  - docker push nicolaslazzos/multiple-docker-nginx
