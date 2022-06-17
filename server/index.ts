@@ -1,71 +1,94 @@
 import express from 'express';
+import { OptionsJson } from 'body-parser';
 import cors from 'cors';
-import { Pool } from 'pg';
+import { Pool, PoolConfig } from 'pg';
 import { createClient } from 'redis';
 
-const app = express();
+const bootstrap = async () => {
+  const app = express();
 
-// middleware
-app.use(cors());
-app.use(express.json({ extended: false } as any));
+  // middleware
+  app.use(cors());
+  app.use(express.json({ extended: false } as OptionsJson));
 
-// postgres
-const pgClient = new Pool({
-  user: process.env.PG_USER,
-  host: process.env.PG_HOST,
-  database: process.env.PG_DATABASE,
-  password: process.env.PG_PASSWORD,
-  // @ts-ignore
-  port: process.env.PORT
-});
+  // postgres
+  const pgClient = new Pool({
+    user: process.env.PG_USER,
+    host: process.env.PG_HOST,
+    database: process.env.PG_DATABASE,
+    password: process.env.PG_PASSWORD,
+    port: process.env.PORT
+  } as PoolConfig);
 
-pgClient.on("connect", (client) => {
-  client.query("CREATE TABLE IF NOT EXISTS values (number INT").catch(console.log);
-});
+  pgClient.on("connect", (client) => client.query("CREATE TABLE IF NOT EXISTS values (number INT)").catch(console.log));
 
-// redis
-const redisClient = createClient({
-  // @ts-ignore
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-  retry_strategy: () => 1000
-});
+  // redis
+  const redisClient = createClient({ url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` });
 
-const redisPublisher = redisClient.duplicate();
+  await redisClient.connect();
 
-// routes
-app.get('/', (req, res) => {
-  res.send('Ok');
-});
+  const redisPublisher = redisClient.duplicate();
 
-app.get('/values/all', async (req, res) => {
-  const values = await pgClient.query("SELECT * from values");
+  await redisPublisher.connect();
 
-  res.send(values);
-});
+  // routes
+  app.get('/', (req, res) => {
+    try {
+      res.send('Ok');
+    } catch (e) {
+      res.status(500).send('Internal server error');
+    }
+  });
 
-app.get("/values/current", async (req, res) => {
-  const values = await redisClient.hGetAll("values");
+  app.get('/values/all', async (req, res) => {
+    try {
+      const values = await pgClient.query("SELECT * from values");
 
-  res.send(values);
-});
+      res.send(values.rows);
+    } catch (e) {
+      console.log(e);
 
-app.post("/values", async (req, res) => {
-  const index = req.body.index;
+      res.status(500).send('Internal server error');
+    }
+  });
 
-  if (parseInt(index) > 40) {
-    return res.status(422).send("Index too high");
-  }
+  app.get("/values/current", async (req, res) => {
+    try {
+      const values = await redisClient.hGetAll("values");
 
-  redisClient.hSet("values", index, "Nothing yet!");
+      res.send(values);
+    } catch (e) {
+      console.log(e);
 
-  redisPublisher.publish("insert", index);
+      res.status(500).send('Internal server error');
+    }
+  });
 
-  pgClient.query("INSERT INTO values(number) VALUES($1)", [index]);
+  app.post("/values", async (req, res) => {
+    try {
+      const index = req.body.index;
 
-  res.send({ working: true });
-});
+      if (parseInt(index) > 40) {
+        return res.status(422).send("Index too high");
+      }
 
-const PORT = 5000;
+      redisClient.hSet("values", index, "Nothing yet!");
 
-app.listen(PORT, () => { console.log(`Listening on port ${PORT}`); });
+      redisPublisher.publish("insert", index);
+
+      pgClient.query("INSERT INTO values(number) VALUES($1)", [index]);
+
+      res.send({ working: true });
+    } catch (e) {
+      console.log(e);
+
+      res.status(500).send('Internal server error');
+    }
+  });
+
+  const PORT = 5000;
+
+  app.listen(PORT, () => { console.log(`Listening on port ${PORT}`); });
+};
+
+bootstrap();
