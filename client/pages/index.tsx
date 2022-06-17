@@ -63,7 +63,7 @@ const Home: NextPage = () => {
             {
               Object.keys(values).map((value) => {
                 return (
-                  <Tr>
+                  <Tr key={value}>
                     <Td>{value}</Td>
                     <Td>{values[value]}</Td>
                   </Tr>
