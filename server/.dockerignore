@@ -7,3 +7,5 @@ Dockerfile
 Dockerfile.dev
 
 .dockerignore
+
+dist/

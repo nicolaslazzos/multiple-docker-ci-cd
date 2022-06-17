@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.ts",
   "scripts": {
+    "build": "tsc --build",
+    "prod": "node ./dist/index.js",
     "dev": "ts-node-dev index.ts"
   },
   "author": "",

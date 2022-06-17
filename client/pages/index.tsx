@@ -44,7 +44,9 @@ const Home: NextPage = () => {
       await axios.post('/api/values', { index: number });
 
       setNumber('');
-    } catch (e) { }
+    } catch (e) { } finally {
+      loadData();
+    }
   };
 
   const renderCalculatedValues = () => {
@@ -83,7 +85,7 @@ const Home: NextPage = () => {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to Fibonacci Calculator
+          Fibonacci Calculator
         </h1>
 
         <form style={{ padding: 25 }} onSubmit={onSubmit}>
