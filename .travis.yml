@@ -26,3 +26,15 @@ after_success:
   - docker push nicolaslazzos/multiple-docker-server
   - docker push nicolaslazzos/multiple-docker-worker
   - docker push nicolaslazzos/multiple-docker-nginx
+
+deploy:
+  provider: elasticbeanstalk
+  region: "us-east-1"
+  app: "multiple-docker-ci-cd"
+  env: "Multipledockercicd-env"
+  bucket_name: "elasticbeanstalk-us-east-1-161028048438"
+  bucket_path: "multiple-docker-ci-cd"
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY
